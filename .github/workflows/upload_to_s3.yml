@@ -1,0 +1,61 @@
+name: Compare and Upload to S3
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  compare-and-upload:
+    runs-on: windows-latest
+
+    env:
+      LOCAL_PATH: "F:\\INTEGRATED-PROJECTS\\Softwares\\ipx.bimops\\src\\ipx.bimops.installers.frontend.net8\\Releases"  # Update this with the path to your server files
+      S3_PREFIX: "s3://ip-public-files-488741516777-prod/iso_plugin/Releases/"  # Prefix for your S3 bucket
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: List Files in S3
+      run: |
+        aws s3 ls $S3_PREFIX --recursive --summarize | grep '\.nupkg$' > s3_files.txt
+        echo "S3 .nupkg files:"
+        cat s3_files.txt
+
+    - name: Extract Latest Version from S3
+      run: |
+        S3_LATEST=$(grep 'Iso-' s3_files.txt | sed 's/.*Iso-\([0-9.]*\)-.*/\1/' | sort -V | tail -n 1)
+        echo "S3 latest version: $S3_LATEST"
+        echo "S3_LATEST=$S3_LATEST" >> $GITHUB_ENV
+
+    - name: Extract Latest Version from Local Server
+      run: |
+        LOCAL_LATEST=$(ls -1 $LOCAL_PATH | grep 'Iso-' | sed 's/.*Iso-\([0-9.]*\)-.*/\1/' | sort -V | tail -n 1)
+        echo "Local latest version: $LOCAL_LATEST"
+        echo "LOCAL_LATEST=$LOCAL_LATEST" >> $GITHUB_ENV
+
+    - name: Compare Versions and Upload if Needed
+      if: env.LOCAL_LATEST > env.S3_LATEST
+      run: |
+        echo "Newer version found locally. Uploading artifacts..."
+
+        # Upload delta package
+        aws s3 cp "$LOCAL_PATH/Iso-${LOCAL_LATEST}-delta.nupkg" "$S3_PREFIX/Iso-${LOCAL_LATEST}-delta.nupkg"
+
+        # Upload full package
+        aws s3 cp "$LOCAL_PATH/Iso-${LOCAL_LATEST}-full.nupkg" "$S3_PREFIX/Iso-${LOCAL_LATEST}-full.nupkg"
+
+        # Upload RELEASES file
+        aws s3 cp "$LOCAL_PATH/RELEASES.file" "$S3_PREFIX/RELEASES.file"
+
+    - name: No New Version Found
+      if: env.LOCAL_LATEST <= env.S3_LATEST
+      run: echo "No newer version found. Skipping upload."
