@@ -7,7 +7,7 @@ on:
 
 jobs:
   compare-and-upload:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
 
     env:
       LOCAL_PATH: "F:\\INTEGRATED-PROJECTS\\Softwares\\ipx.bimops\\src\\ipx.bimops.installers.frontend.net8\\Releases"  # Update this with the path to your server files
