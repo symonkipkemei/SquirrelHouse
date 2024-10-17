@@ -22,7 +22,6 @@ namespace SquirrrelHouse
         {
             InitializeComponent();
             AddVersionNumber();
-
             CheckForUpdates();
         }
 
@@ -40,7 +39,7 @@ namespace SquirrrelHouse
             System.Reflection.Assembly assembly = System.Reflection.Assembly.GetExecutingAssembly();
             FileVersionInfo fileVersionInfo = FileVersionInfo.GetVersionInfo(assembly.Location);
 
-            string msg = "Hello Welcome.\n Squirrel in the building ";
+            string msg = "Hello Welcome.\n Squirrel in the building. On it as well ";
             string message = $" v.{fileVersionInfo.FileVersion}";
 
             this.Title += message;
