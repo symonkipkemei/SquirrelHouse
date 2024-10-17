@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <AssemblyVersion>1.1.4</AssemblyVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Squirrel.Windows" Version="1.9.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Squirrel">
+      <HintPath>C:\Users\Symon Kipkemei\.nuget\packages\squirrel.windows\1.9.1\lib\Net45\Squirrel.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+</Project>
