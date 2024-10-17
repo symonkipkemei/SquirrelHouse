@@ -1,4 +1,4 @@
-name: Compare and Upload to S3
+name: Build,Compar
 
 on:
   push:
@@ -7,16 +7,30 @@ on:
 
 jobs:
   compare-and-upload:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
 
     env:
-      LOCAL_PATH: "F:\\INTEGRATED-PROJECTS\\Softwares\\ipx.bimops\\src\\ipx.bimops.installers.frontend.net8\\Releases"  
-      S3_PREFIX: "s3://iso-plugin-bucket/Releases/"  
+      LOCAL_PATH: ./Publish
+      S3_PREFIX: "s3://iso-plugin-bucket/Releases/"  # Prefix for your S3 bucket
 
     steps:
     - name: Checkout Code
       uses: actions/checkout@v3
 
+    - name: set up.NET
+      uses: actions/setup-dotnet@v3
+      with: 
+       dotnet-version: '8.x'
+
+    - name: Restore Dependencies
+      run: dotnet restore
+
+    - name: Build solution
+      run: dotnet build --configuration Release
+
+    - name: Publish Project
+      run: dotnet publish --configuration Release -o $LOCAL_PATH
+  
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v2
       with:
@@ -25,42 +39,37 @@ jobs:
         aws-region: ${{ secrets.AWS_REGION }}
 
     - name: List Files in S3
-      shell: pwsh
       run: |
-        aws s3 ls $env:S3_PREFIX --recursive --summarize | Select-String '\.nupkg$' > s3_files.txt
-        Write-Host "S3 .nupkg files:"
-        Get-Content s3_files.txt
+        aws s3 ls $S3_PREFIX --recursive --summarize | grep '\.nupkg$' > s3_files.txt
+        echo "S3 .nupkg files:"
+        cat s3_files.txt
 
     - name: Extract Latest Version from S3
-      shell: pwsh
       run: |
-        $S3_LATEST = Get-Content s3_files.txt | 
-                     Select-String 'Iso-' | 
-                     ForEach-Object { $_.Matches.Value -replace '.*Iso-([0-9.]+)-.*', '$1' } | 
-                     Sort-Object -Version | Select-Object -Last 1
-        Write-Host "S3 latest version: $S3_LATEST"
-        echo "S3_LATEST=$S3_LATEST" | Out-File -FilePath $env:GITHUB_ENV -Append
+        S3_LATEST=$(grep 'Iso-' s3_files.txt | sed 's/.*Iso-\([0-9.]*\)-.*/\1/' | sort -V | tail -n 1)
+        echo "S3 latest version: $S3_LATEST"
+        echo "S3_LATEST=$S3_LATEST" >> $GITHUB_ENV
 
     - name: Extract Latest Version from Local Server
-      shell: pwsh
       run: |
-        $LOCAL_LATEST = Get-ChildItem -Path $env:LOCAL_PATH | 
-                        Where-Object { $_.Name -match 'Iso-' } |
-                        ForEach-Object { $_.Name -replace '.*Iso-([0-9.]+)-.*', '$1' } | 
-                        Sort-Object -Version | Select-Object -Last 1
-        Write-Host "Local latest version: $LOCAL_LATEST"
-        echo "LOCAL_LATEST=$LOCAL_LATEST" | Out-File -FilePath $env:GITHUB_ENV -Append
+        LOCAL_LATEST=$(ls -1 $LOCAL_PATH | grep 'Iso-' | sed 's/.*Iso-\([0-9.]*\)-.*/\1/' | sort -V | tail -n 1)
+        echo "Local latest version: $LOCAL_LATEST"
+        echo "LOCAL_LATEST=$LOCAL_LATEST" >> $GITHUB_ENV
 
     - name: Compare Versions and Upload if Needed
-      if: ${{ env.LOCAL_LATEST > env.S3_LATEST }}
-      shell: pwsh
+      if: env.LOCAL_LATEST > env.S3_LATEST
       run: |
-        Write-Host "Newer version found locally. Uploading artifacts..."
-        aws s3 cp "$env:LOCAL_PATH\Iso-$env:LOCAL_LATEST-delta.nupkg" "$env:S3_PREFIX/Iso-$env:LOCAL_LATEST-delta.nupkg"
-        aws s3 cp "$env:LOCAL_PATH\Iso-$env:LOCAL_LATEST-full.nupkg" "$env:S3_PREFIX/Iso-$env:LOCAL_LATEST-full.nupkg"
-        aws s3 cp "$env:LOCAL_PATH\RELEASES.file" "$env:S3_PREFIX/RELEASES.file"
+        echo "Newer version found locally. Uploading artifacts..."
+
+        # Upload delta package
+        aws s3 cp "$LOCAL_PATH/Iso-${LOCAL_LATEST}-delta.nupkg" "$S3_PREFIX/Iso-${LOCAL_LATEST}-delta.nupkg"
+
+        # Upload full package
+        aws s3 cp "$LOCAL_PATH/Iso-${LOCAL_LATEST}-full.nupkg" "$S3_PREFIX/Iso-${LOCAL_LATEST}-full.nupkg"
+
+        # Upload RELEASES file
+        aws s3 cp "$LOCAL_PATH/RELEASES.file" "$S3_PREFIX/RELEASES.file"
 
     - name: No New Version Found
-      if: ${{ env.LOCAL_LATEST <= env.S3_LATEST }}
-      shell: pwsh
-      run: Write-Host "No newer version found. Skipping upload."
+      if: env.LOCAL_LATEST <= env.S3_LATEST
+      run: echo "No newer version found. Skipping upload."
