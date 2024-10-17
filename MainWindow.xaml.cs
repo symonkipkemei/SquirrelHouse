@@ -39,7 +39,7 @@ namespace SquirrrelHouse
             System.Reflection.Assembly assembly = System.Reflection.Assembly.GetExecutingAssembly();
             FileVersionInfo fileVersionInfo = FileVersionInfo.GetVersionInfo(assembly.Location);
 
-            string msg = "Hello Welcome.\n Squirrel in the building. On it as well ";
+            string msg = "Hello Welcome.\n Squirrel in the building. On it as well. Hope this works ";
             string message = $" v.{fileVersionInfo.FileVersion}";
 
             this.Title += message;
