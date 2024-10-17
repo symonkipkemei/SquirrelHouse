@@ -11,7 +11,7 @@ jobs:
 
     env:
       LOCAL_PATH: "F:\\INTEGRATED-PROJECTS\\Softwares\\ipx.bimops\\src\\ipx.bimops.installers.frontend.net8\\Releases"  # Update this with the path to your server files
-      S3_PREFIX: "s3://ip-public-files-488741516777-prod/iso_plugin/Releases/"  # Prefix for your S3 bucket
+      S3_PREFIX: "s3://iso-plugin-bucket/Releases/"  # Prefix for your S3 bucket
 
     steps:
     - name: Checkout Code
